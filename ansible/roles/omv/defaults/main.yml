@@ -1,0 +1,17 @@
+---
+# roles/omv/defaults/main.yml
+# Override these variables in your inventory or playbook as needed.
+
+# URL of the official OMV install script
+omv_install_script_url: >-
+  https://github.com/OpenMediaVault-Plugin-Developers/installScript/raw/master/install
+
+# URL of the OMV-Extras install script (provides Docker/Portainer plugins)
+omv_extras_install_script_url: >-
+  https://github.com/OpenMediaVault-Plugin-Developers/packages/raw/master/install
+
+# How long (seconds) to wait for OMV services to stabilise after install
+omv_service_wait_seconds: 120
+
+# Whether to install the openmediavault-compose plugin (Docker Compose support)
+omv_install_compose_plugin: true

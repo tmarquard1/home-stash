@@ -1,0 +1,37 @@
+---
+# roles/omv/tasks/install_omv.yml — install OpenMediaVault via official script
+
+- name: Check if OMV is already installed
+  ansible.builtin.command: dpkg-query -W openmediavault
+  register: omv_installed
+  changed_when: false
+  failed_when: false
+
+- name: Download the OMV install script
+  ansible.builtin.get_url:
+    url: "{{ omv_install_script_url }}"
+    dest: /tmp/install_omv.sh
+    mode: "0755"
+  when: omv_installed.rc != 0
+
+- name: Run the OMV install script (this takes several minutes)
+  ansible.builtin.command: bash /tmp/install_omv.sh
+  when: omv_installed.rc != 0
+  register: omv_install_result
+  changed_when: omv_install_result.rc == 0
+
+- name: Remove OMV install script
+  ansible.builtin.file:
+    path: /tmp/install_omv.sh
+    state: absent
+
+- name: Wait for openmediavault-engined to stabilise
+  ansible.builtin.wait_for:
+    timeout: "{{ omv_service_wait_seconds }}"
+  when: omv_installed.rc != 0
+
+- name: Ensure openmediavault-engined is running
+  ansible.builtin.systemd:
+    name: openmediavault-engined
+    state: started
+    enabled: true

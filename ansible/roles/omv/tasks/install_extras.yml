@@ -1,0 +1,49 @@
+---
+# roles/omv/tasks/install_extras.yml — install OMV-Extras and Docker plugin
+
+- name: Check if omv-extras is already installed
+  ansible.builtin.command: dpkg-query -W openmediavault-omvextrasorg
+  register: omv_extras_installed
+  changed_when: false
+  failed_when: false
+
+- name: Download the OMV-Extras install script
+  ansible.builtin.get_url:
+    url: "{{ omv_extras_install_script_url }}"
+    dest: /tmp/install_omv_extras.sh
+    mode: "0755"
+  when: omv_extras_installed.rc != 0
+
+- name: Run the OMV-Extras install script
+  ansible.builtin.command: bash /tmp/install_omv_extras.sh
+  when: omv_extras_installed.rc != 0
+  register: omv_extras_result
+  changed_when: omv_extras_result.rc == 0
+
+- name: Remove OMV-Extras install script
+  ansible.builtin.file:
+    path: /tmp/install_omv_extras.sh
+    state: absent
+
+- name: Update apt cache after adding OMV-Extras repos
+  ansible.builtin.apt:
+    update_cache: true
+  when: omv_extras_installed.rc != 0
+
+- name: Install openmediavault-compose plugin (Docker Compose support)
+  ansible.builtin.apt:
+    name: openmediavault-compose
+    state: present
+  when: omv_install_compose_plugin | bool
+
+- name: Apply pending OMV configuration changes
+  ansible.builtin.command: omv-salt deploy run --no-color nginx
+  changed_when: true
+  failed_when: false
+
+- name: Ensure Docker service is running
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: true
+  failed_when: false

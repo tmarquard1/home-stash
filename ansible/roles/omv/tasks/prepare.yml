@@ -1,0 +1,45 @@
+---
+# roles/omv/tasks/prepare.yml — system preparation before OMV install
+
+- name: Update apt cache and upgrade all packages
+  ansible.builtin.apt:
+    update_cache: true
+    upgrade: full
+    cache_valid_time: 3600
+
+- name: Install prerequisite packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - wget
+      - gnupg
+      - ca-certificates
+      - apt-transport-https
+      - lsb-release
+      - python3-apt
+    state: present
+
+- name: Read current cmdline.txt
+  ansible.builtin.slurp:
+    src: /boot/firmware/cmdline.txt
+  register: cmdline_content
+
+- name: Enable cgroup memory (required for Docker on Pi)
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/cmdline.txt
+    backrefs: false
+    regexp: '^.*$'
+    line: >-
+      {{ (cmdline_content['content'] | b64decode | trim) }}
+      cgroup_enable=memory cgroup_memory=1
+  when: >
+    'cgroup_enable=memory' not in (cmdline_content['content'] | b64decode)
+  notify: Reboot if cmdline changed
+
+- name: Flush handlers before continuing (reboot if needed)
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for the Pi to come back after reboot
+  ansible.builtin.wait_for_connection:
+    delay: 10
+    timeout: 300

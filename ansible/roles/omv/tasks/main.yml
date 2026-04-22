@@ -1,0 +1,11 @@
+---
+# roles/omv/tasks/main.yml
+
+- name: Include system preparation tasks
+  ansible.builtin.import_tasks: prepare.yml
+
+- name: Include OpenMediaVault install tasks
+  ansible.builtin.import_tasks: install_omv.yml
+
+- name: Include OMV-Extras and Docker install tasks
+  ansible.builtin.import_tasks: install_extras.yml
