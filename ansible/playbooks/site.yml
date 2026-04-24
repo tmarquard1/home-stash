@@ -1,0 +1,5 @@
+---
+# site.yml — master playbook that runs the full setup in order.
+# Usage: ansible-playbook playbooks/site.yml
+- import_playbook: omv.yml
+- import_playbook: immich.yml

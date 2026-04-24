@@ -1,0 +1,30 @@
+---
+# roles/immich/defaults/main.yml
+# Override these in your inventory or playbook as needed.
+
+# Directory on the Pi where Immich config and data will live
+immich_base_dir: /opt/immich
+
+# Immich version to deploy (use a specific tag for reproducibility)
+# See https://github.com/immich-app/immich/releases for available versions
+immich_version: "v1.106.4"
+
+# Port on which Immich's web server will be accessible
+immich_port: 2283
+
+# Timezone for the Immich containers (must be a valid TZ database name)
+immich_timezone: "America/New_York"
+
+# PostgreSQL settings
+immich_db_name: immich
+immich_db_username: immich
+# IMPORTANT: You MUST override immich_db_password in an Ansible Vault-encrypted
+# vars file or via --extra-vars. The placeholder value below will intentionally
+# fail if left unchanged to prevent accidental insecure deployments.
+immich_db_password: "CHANGEME_SET_IN_VAULT"
+
+# Upload/library storage location (override to point at an external SSD)
+immich_upload_location: "{{ immich_base_dir }}/library"
+
+# Immich machine learning — set to false to disable (saves RAM on 4 GB Pi)
+immich_enable_ml: true

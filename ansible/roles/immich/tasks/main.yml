@@ -1,0 +1,48 @@
+---
+# roles/immich/tasks/main.yml
+
+- name: Create Immich base directory
+  ansible.builtin.file:
+    path: "{{ immich_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create Immich library (upload) directory
+  ansible.builtin.file:
+    path: "{{ immich_upload_location }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Template the .env file
+  ansible.builtin.template:
+    src: immich.env.j2
+    dest: "{{ immich_base_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart Immich
+
+- name: Template the docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ immich_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Immich
+
+- name: Pull Immich Docker images
+  community.docker.docker_compose_v2:
+    project_src: "{{ immich_base_dir }}"
+    pull: always
+    state: present
+  register: immich_compose_result
+
+- name: Ensure Immich containers are running
+  community.docker.docker_compose_v2:
+    project_src: "{{ immich_base_dir }}"
+    state: present

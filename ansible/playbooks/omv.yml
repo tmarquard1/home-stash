@@ -1,0 +1,10 @@
+---
+# omv.yml — installs OpenMediaVault and the OMV-Extras/Docker plugin.
+# This playbook is idempotent; re-running it is safe.
+- name: Install OpenMediaVault with Docker extras
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: omv

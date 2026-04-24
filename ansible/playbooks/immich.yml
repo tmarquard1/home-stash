@@ -1,0 +1,11 @@
+---
+# immich.yml — deploys the Immich photo management stack.
+# Requires Docker to be available (run omv.yml first, or ensure Docker is
+# installed by some other means).
+- name: Deploy Immich
+  hosts: all
+  become: true
+  gather_facts: true
+
+  roles:
+    - role: immich
