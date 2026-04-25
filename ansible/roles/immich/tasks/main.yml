@@ -1,6 +1,13 @@
 ---
 # roles/immich/tasks/main.yml
 
+- name: Fail if immich_db_password has not been set
+  ansible.builtin.fail:
+    msg: >-
+      immich_db_password is still set to the default placeholder.
+      Override it in your inventory or via --extra-vars.
+  when: immich_db_password == 'CHANGEME_SET_IN_VAULT'
+
 - name: Create Immich base directory
   ansible.builtin.file:
     path: "{{ immich_base_dir }}"

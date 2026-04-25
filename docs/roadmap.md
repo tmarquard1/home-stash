@@ -22,8 +22,34 @@ server. Items are roughly ordered by priority.
 **Goal:** Move Immich's PostgreSQL database and media library off the SD card
 onto a dedicated external SSD to improve performance and longevity.
 
+**Hardware:**
+- **USB hub:** Plugable 7-Port USB 3.0 Hub with 36 W power adapter — chosen
+  for its reliable power delivery; the dedicated 36 W adapter ensures the hub
+  can supply full USB 3.0 bus power to attached devices without back-powering
+  or brown-outs on the Pi. The extra ports also leave room for future
+  peripherals.
+- **SSD:** Crucial X9 1 TB Portable SSD (USB 3.2 Gen 2, USB-C) — rated up to
+  1050 MB/s sequential read. Connected through the Plugable hub, effective
+  throughput is capped at USB 3.0 speeds (~5 Gbps / ~500 MB/s), which is still
+  a significant improvement over the SD card.
+
+**Validating the connection:**
+
+After plugging the hub and SSD into one of the Pi 5's USB 3.0 ports (the blue
+ports), verify the SSD is negotiating at USB 3.0 (5000 Mbps) rather than
+falling back to USB 2.0 (480 Mbps):
+
+```bash
+lsusb -t
+```
+
+Look for the Crucial device in the tree and confirm the speed reads **5000M**.
+If it shows **480M** the device has fallen back to USB 2.0 — try a different
+cable, port, or check that the hub is connected to a blue USB 3.0 port on the
+Pi.
+
 **Planned approach:**
-- Attach SSD via USB 3 (or PCIe HAT for Pi 5)
+- Attach SSD via the Plugable USB 3.0 hub to a Pi 5 USB 3.0 port
 - Create an Ansible role that formats and mounts the drive at a deterministic
   path (e.g. `/mnt/ssd`)
 - Update Immich's `docker-compose.yml` volume mounts to point to the SSD

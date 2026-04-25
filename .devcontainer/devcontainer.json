@@ -1,0 +1,24 @@
+{
+	"name": "Home Stash Ansible",
+	"image": "mcr.microsoft.com/devcontainers/python:3.12",
+	
+	// "features": {
+	// 	
+	// },
+
+	"postCreateCommand": "pip install --user ansible ansible-lint && ansible-galaxy collection install community.general ansible.posix",
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"redhat.ansible",
+				"redhat.vscode-yaml"
+			],
+			"settings": {
+				"ansible.python.interpreterPath": "/usr/local/bin/python"
+			}
+		}
+	},
+
+	"remoteUser": "vscode",
+}

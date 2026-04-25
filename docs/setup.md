@@ -13,8 +13,10 @@ inside Docker containers managed by OpenMediaVault.
 | Raspberry Pi 5 (4 GB or 8 GB RAM recommended) | |
 | MicroSD card ≥ 16 GB (Class 10 / A2 rated) | Temporary boot medium |
 | Power supply (official 27 W USB-C) | |
-| Ethernet cable | Recommended for reliability |
-| Control machine (macOS/Linux/WSL) | Needs Ansible ≥ 2.14 and Python ≥ 3.10 |
+| Plugable 7-Port USB 3.0 Hub w/ 36 W power adapter | Chosen for reliable power delivery to the SSD; the 36 W adapter ensures the hub can power bus-hungry USB 3.0 devices without back-powering the Pi |
+| Crucial X9 1 TB Portable SSD (USB 3.2 Gen 2, USB-C) | External storage for Immich media and database; connects to the Pi through the Plugable hub. Rated up to 1050 MB/s, limited to ~5 Gbps (USB 3.0) through the hub and Pi 5 USB 3.0 ports |
+| Ethernet cable | **Required** for initial setup (WiFi can be configured later) |
+| Control machine with VS Code and Docker | Uses devcontainer (no local Python/Ansible needed) |
 
 ---
 
@@ -26,41 +28,57 @@ inside Docker containers managed by OpenMediaVault.
    - Set a hostname, e.g. `homeserver`
    - Enable SSH (use password or public-key auth)
    - Set username and password
-   - Configure Wi-Fi only if you cannot use Ethernet
-4. Flash to the SD card, insert into the Pi and power on.
-5. Wait ~60 seconds, then confirm SSH access:
+   - **Do NOT configure Wi-Fi** — use ethernet for initial setup
+4. Flash to the SD card, insert into the Pi.
+5. **Connect the Pi to your router via ethernet cable** before powering on.
+6. Power on the Pi and wait ~60 seconds, then confirm SSH access:
 
    ```bash
    ssh pi@homeserver.local
    # or use the IP address shown in your router's DHCP table
    ```
 
-6. **Recommended:** assign a static IP (or DHCP reservation) for the Pi in your
+7. **Recommended:** assign a static IP (or DHCP reservation) for the Pi in your
    router before continuing.
+
+> **Why ethernet?** The OpenMediaVault installation reconfigures network management
+> on the Pi. Using ethernet ensures uninterrupted connectivity during setup. WiFi
+> can be configured afterward through the OMV web UI under **Network → Interfaces**.
 
 ---
 
 ## Step 2 — Prepare the control machine
 
-Install Ansible and the required collections on your laptop/desktop:
+This project uses a **devcontainer** so you don't need to install Python or Ansible locally.
 
-```bash
-# macOS (Homebrew)
-brew install ansible
+### Prerequisites
 
-# Debian/Ubuntu
-sudo apt update && sudo apt install -y ansible
+- [Visual Studio Code](https://code.visualstudio.com/)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine on Linux)
+- [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) for VS Code
 
-# Install required Ansible collections
-ansible-galaxy collection install community.general ansible.posix
-```
+### Setup
 
-Clone this repository (if you haven't already):
+1. Clone this repository:
 
-```bash
-git clone https://github.com/tmarquard1/home-stash.git
-cd home-stash
-```
+   ```bash
+   git clone https://github.com/tmarquard1/home-stash.git
+   cd home-stash
+   ```
+
+2. Open the project in VS Code:
+
+   ```bash
+   code .
+   ```
+
+3. When prompted, click **"Reopen in Container"** (or press `Cmd+Shift+P` / `Ctrl+Shift+P` and select **"Dev Containers: Reopen in Container"**)
+
+4. VS Code will build the container and install Ansible automatically. This may take a few minutes the first time.
+
+5. Your SSH keys from `~/.ssh` are automatically mounted read-only into the container for Ansible to use.
+
+> **Note:** If you prefer to install Ansible locally instead, you can do so with `brew install ansible` (macOS) or `apt install ansible` (Debian/Ubuntu), then install collections with `ansible-galaxy collection install community.general ansible.posix`.
 
 ---
 
@@ -80,7 +98,13 @@ all:
     homeserver:
       ansible_host: 192.168.1.100   # <-- your Pi's IP
       ansible_user: pi              # <-- the user you set in Imager
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    immich_db_password: "your-strong-password-here"   # REQUIRED
 ```
+
+> **Important:** You must set `immich_db_password` to a strong, unique password.
+> The playbook will refuse to run if it is left as the default placeholder.
 
 Test connectivity:
 
@@ -104,8 +128,8 @@ The playbook will:
    baseline, enable `cgroups` for container support.
 2. **Install OpenMediaVault** — runs the official OMV install script, waits for
    the service to stabilise, then installs OMV-Extras.
-3. **Install Docker via OMV-Extras** — installs the `openmediavault-compose`
-   plugin which provides Docker Engine and Docker Compose.
+3. **Install Docker** — installs Docker Engine and CLI from Debian packages,
+   then installs the `openmediavault-compose` UI plugin.
 4. **Deploy Immich** — copies the Compose stack and `.env` file to the Pi,
    pulls images, and starts the services.
 
@@ -176,6 +200,8 @@ ansible/
 | Symptom | Fix |
 |---------|-----|
 | `UNREACHABLE` on first `ansible ping` | Confirm SSH works manually; check IP in `hosts.yml` |
+| `immich_db_password` fail | Set `immich_db_password` in your inventory (see Step 3) |
 | OMV web UI not loading after playbook | Wait 2–3 min for `openmediavault` service to fully start |
 | Immich containers exit immediately | Check `docker compose logs` on the Pi; often a missing env var |
 | Docker not found after OMV-Extras install | Reboot the Pi and re-run `playbooks/immich.yml` |
+| Lost connectivity during OMV install | OMV reconfigures networking - use ethernet; if using WiFi, manually restore with `sudo dhclient wlan0` |

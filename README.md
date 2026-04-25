@@ -10,28 +10,31 @@ A fully automated setup for a **Raspberry Pi 5** home server running
 |-------|-----------|
 | OS | Raspberry Pi OS Lite (64-bit) |
 | NAS/Media OS | OpenMediaVault 7 (OMV) |
-| Container runtime | Docker (via OMV-Extras) |
+| Container runtime | Docker (via Debian packages) |
 | Photo management | Immich |
 
 ## Quick start
 
+> **💡 No local Python/Ansible required!** This project includes a devcontainer. Open in VS Code with Docker installed and select **"Reopen in Container"** to get started immediately.
+
 1. Flash **Raspberry Pi OS Lite (64-bit)** to an SD card and boot the Pi.
-2. Enable SSH and note the Pi's IP address (set a static IP or reserve it in your router).
-3. Copy and edit the inventory:
+2. **Connect the Pi to your router via ethernet cable** (WiFi can be configured later through OMV web UI).
+3. Enable SSH and note the Pi's IP address (set a static IP or reserve it in your router).
+4. Copy and edit the inventory:
 
    ```bash
    cp ansible/inventory/hosts.yml.example ansible/inventory/hosts.yml
    # edit hosts.yml and set your Pi's IP / hostname
    ```
 
-4. Run the full site playbook:
+5. Run the full site playbook:
 
    ```bash
    cd ansible
    ansible-playbook playbooks/site.yml
    ```
 
-5. When the playbook finishes:
+6. When the playbook finishes:
    - OpenMediaVault web UI → `http://<pi-ip>` (default creds: `admin` / `openmediavault`)
    - Immich web UI → `http://<pi-ip>:2283`
 

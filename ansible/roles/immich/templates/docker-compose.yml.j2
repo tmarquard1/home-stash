@@ -17,8 +17,10 @@ services:
     ports:
       - {{ immich_port }}:3001
     depends_on:
-      - redis
-      - database
+      redis:
+        condition: service_healthy
+      database:
+        condition: service_healthy
     restart: always
     healthcheck:
       disable: false
@@ -72,7 +74,7 @@ services:
       -c logging_collector=on
       -c max_wal_size=2GB
       -c shared_buffers=512MB
-      -c wal_compression=lz4
+      -c wal_compression=on
     restart: always
 
 volumes:
