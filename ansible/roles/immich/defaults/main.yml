@@ -7,7 +7,7 @@ immich_base_dir: /opt/immich
 
 # Immich version to deploy (use a specific tag for reproducibility)
 # See https://github.com/immich-app/immich/releases for available versions
-immich_version: "v1.106.4"
+immich_version: "v2.7.5"
 
 # Port on which Immich's web server will be accessible
 immich_port: 2283
@@ -25,6 +25,9 @@ immich_db_password: "CHANGEME_SET_IN_VAULT"
 
 # Upload/library storage location (override to point at an external SSD)
 immich_upload_location: "{{ immich_base_dir }}/library"
+
+# Database data storage location (must be on a local filesystem, not a network share)
+immich_db_data_location: "{{ immich_base_dir }}/postgres"
 
 # Immich machine learning — set to false to disable (saves RAM on 4 GB Pi)
 immich_enable_ml: true

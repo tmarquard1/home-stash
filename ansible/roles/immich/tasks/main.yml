@@ -24,6 +24,14 @@
     group: root
     mode: "0755"
 
+- name: Create Immich database data directory
+  ansible.builtin.file:
+    path: "{{ immich_db_data_location }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Template the .env file
   ansible.builtin.template:
     src: immich.env.j2
