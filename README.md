@@ -13,6 +13,17 @@ A fully automated setup for a **Raspberry Pi 5** home server running
 | Container runtime | Docker (via Debian packages) |
 | Photo management | Immich |
 
+## Security & Quality Automation
+
+This project includes automated security and quality checks:
+
+- **🔒 CodeQL Security Scanning** - Continuous vulnerability analysis on every push
+- **📦 Dependabot** - Automated dependency updates for GitHub Actions, Docker, and Python packages
+- **✅ Ansible Lint** - Automated code quality checks for Ansible playbooks
+- **📚 Comprehensive Documentation** - Copilot instructions ensure secure, idempotent development practices
+
+All automation runs via GitHub Actions and keeps your infrastructure code secure and up-to-date.
+
 ## Quick start
 
 > **💡 No local Python/Ansible required!** This project includes a devcontainer. Open in VS Code with Docker installed and select **"Reopen in Container"** to get started immediately.

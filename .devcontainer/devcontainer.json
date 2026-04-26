@@ -6,7 +6,7 @@
 	// 	
 	// },
 
-	"postCreateCommand": "pip install --user ansible ansible-lint && ansible-galaxy collection install community.general ansible.posix",
+	"postCreateCommand": "pip install --user -r requirements.txt && ansible-galaxy collection install community.general ansible.posix",
 
 	"customizations": {
 		"vscode": {
@@ -20,5 +20,5 @@
 		}
 	},
 
-	"remoteUser": "vscode",
+	"remoteUser": "vscode"
 }

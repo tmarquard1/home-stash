@@ -12,10 +12,22 @@ server. Items are roughly ordered by priority.
 - OpenMediaVault 7 with OMV-Extras
 - Docker Engine via OMV-Extras compose plugin
 - Immich self-hosted photo & video management
+- Dependabot for automated dependency updates (GitHub Actions, Docker, Python)
+- CodeQL security scanning for vulnerability detection
+- Ansible Lint CI workflow for code quality enforcement
+- Comprehensive Copilot instructions for secure, idempotent development
 
 ---
 
 ## 🗂️ Backlog
+
+### 0 - Miscellaneous automation things I need to do
+
+* Fix ansible lint errors (CI workflow added, now need to address existing issues)
+* Validate security posture (CodeQL scanning now active)
+* Think more about having procedures in place for data restore
+* Probably should read more OMV and Immich docs to better understand the projects.... Oh AI, doing my thinking for me
+* 
 
 ### 1 — External SSD for Immich storage
 

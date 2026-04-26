@@ -1,0 +1,54 @@
+# Ansible Lint workflow for code quality checks
+# Documentation: https://ansible.readthedocs.io/projects/lint/
+
+name: "Ansible Lint"
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'ansible/**'
+      - '.github/workflows/ansible-lint.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'ansible/**'
+      - '.github/workflows/ansible-lint.yml'
+
+jobs:
+  lint:
+    name: Lint Ansible Playbooks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: 'pip'
+
+    - name: Install Ansible and ansible-lint
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install Ansible collections
+      run: |
+        ansible-galaxy collection install community.general ansible.posix
+
+    - name: Run ansible-lint
+      run: |
+        ansible-lint ansible/playbooks/
+      continue-on-error: true
+      # Note: Set to 'false' once existing lint errors are resolved
+
+    - name: Display lint version info
+      if: always()
+      run: |
+        ansible-lint --version
+        ansible --version
