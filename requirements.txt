@@ -9,5 +9,5 @@ ansible>=9.0.0
 ansible-lint>=6.22.0
 
 # Additional useful tools for Ansible development
-jmespath>=1.0.0  # Required for json_query filter
+jmespath>=1.1.0  # Required for json_query filter
 netaddr>=1.3.0   # Required for ipaddr filter
