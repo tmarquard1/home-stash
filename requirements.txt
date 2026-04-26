@@ -5,7 +5,7 @@
 # Ansible core and related tools
 # Note: Modern ansible package includes ansible-core + collections
 # ansible 9.x = ansible-core 2.16, ansible 10.x = ansible-core 2.17
-ansible>=9.0.0
+ansible>=13.6.0
 ansible-lint>=6.22.0
 
 # Additional useful tools for Ansible development
