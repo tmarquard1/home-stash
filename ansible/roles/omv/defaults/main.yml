@@ -15,3 +15,20 @@ omv_service_wait_seconds: 120
 
 # Whether to install the openmediavault-compose plugin (Docker Compose support)
 omv_install_compose_plugin: true
+
+# External storage configuration
+# Set to true to configure an external SSD/HDD for application data storage
+omv_setup_external_storage: true
+
+# Device path of the external disk (e.g., /dev/sda for USB drive)
+# Verify with: lsblk -o NAME,SIZE,TYPE,FSTYPE,MODEL
+omv_external_disk_device: /dev/sda
+
+# Label for the ext4 filesystem (used for detection and identification).
+# On first run the disk is wiped, repartitioned (GPT, single partition),
+# and formatted ext4 with this label.  On subsequent runs the label is
+# used to find the existing filesystem without reformatting.
+omv_external_disk_label: immich-storage
+
+# Name of the shared folder to create for Immich data
+omv_immich_shared_folder_name: immich

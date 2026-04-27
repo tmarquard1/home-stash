@@ -9,3 +9,33 @@
 
 - name: Include OMV-Extras and Docker install tasks
   ansible.builtin.import_tasks: install_extras.yml
+
+- name: Include external storage setup tasks
+  ansible.builtin.include_tasks: setup_storage.yml
+  when: omv_setup_external_storage | bool
+  tags:
+    - storage
+    - immich
+
+# Apply all pending OMV configuration changes at the end of the role.
+# This is the equivalent of clicking "Apply" in the web UI and ensures
+# all modules (fstab, collectd, monit, cron, etc.) are deployed.
+- name: Check for pending OMV configuration changes
+  ansible.builtin.shell: |
+    set -o pipefail
+    omv-rpc -u admin "Config" "isDirty" '{"id": ""}' 2>/dev/null | \
+    python3 -c "import sys,json; print(json.load(sys.stdin).get('response', False))"
+  args:
+    executable: /bin/bash
+  register: omv_config_dirty
+  changed_when: false
+  failed_when: false
+
+- name: Apply all pending OMV configuration changes
+  ansible.builtin.shell: >-
+    omv-rpc -u admin "Config" "applyChanges"
+    '{"modules": [], "force": false}'
+  args:
+    executable: /bin/bash
+  changed_when: true
+  when: omv_config_dirty.stdout | default('') == 'True'

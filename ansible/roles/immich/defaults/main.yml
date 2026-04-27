@@ -23,11 +23,17 @@ immich_db_username: immich
 # fail if left unchanged to prevent accidental insecure deployments.
 immich_db_password: "CHANGEME_SET_IN_VAULT"
 
+# Storage configuration
+# When using external storage managed by OMV, the omv_immich_library_path and
+# omv_immich_db_path facts will be set by the OMV role. If those variables are
+# defined, they will be used. Otherwise, data will be stored in the
+# immich_base_dir on the SD card.
+
 # Upload/library storage location (override to point at an external SSD)
-immich_upload_location: "{{ immich_base_dir }}/library"
+immich_upload_location: "{{ omv_immich_library_path | default(immich_base_dir + '/library') }}"
 
 # Database data storage location (must be on a local filesystem, not a network share)
-immich_db_data_location: "{{ immich_base_dir }}/postgres"
+immich_db_data_location: "{{ omv_immich_db_path | default(immich_base_dir + '/postgres') }}"
 
 # Immich machine learning — set to false to disable (saves RAM on 4 GB Pi)
 immich_enable_ml: true

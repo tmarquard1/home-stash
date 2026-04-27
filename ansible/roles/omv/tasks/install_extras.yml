@@ -37,6 +37,12 @@
       - docker-cli
     state: present
 
+- name: Remove Debian docker-compose to avoid conflict with docker-compose-plugin
+  ansible.builtin.apt:
+    name: docker-compose
+    state: absent
+  when: omv_install_compose_plugin | bool
+
 - name: Ensure Docker service is running
   ansible.builtin.systemd:
     name: docker
@@ -48,8 +54,3 @@
     name: openmediavault-compose
     state: present
   when: omv_install_compose_plugin | bool
-
-- name: Apply pending OMV configuration changes
-  ansible.builtin.command: omv-salt deploy run --no-color nginx
-  changed_when: true
-  failed_when: false

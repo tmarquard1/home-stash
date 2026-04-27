@@ -16,6 +16,7 @@ server. Items are roughly ordered by priority.
 - CodeQL security scanning for vulnerability detection
 - Ansible Lint CI workflow for code quality enforcement
 - Comprehensive Copilot instructions for secure, idempotent development
+- External SSD storage for Immich (library and PostgreSQL database) via OpenMediaVault
 
 ---
 
@@ -25,49 +26,11 @@ server. Items are roughly ordered by priority.
 
 * Fix ansible lint errors (CI workflow added, now need to address existing issues)
 * Validate security posture (CodeQL scanning now active)
+* Clean up old Immich data from SD card after confirming SSD migration works (see roadmap item #9)
+* Implement local SD card backups for 3-2-1 strategy (see roadmap item #10)
 * Think more about having procedures in place for data restore
 * Probably should read more OMV and Immich docs to better understand the projects.... Oh AI, doing my thinking for me
 * 
-
-### 1 — External SSD for Immich storage
-
-**Goal:** Move Immich's PostgreSQL database and media library off the SD card
-onto a dedicated external SSD to improve performance and longevity.
-
-**Hardware:**
-- **USB hub:** Plugable 7-Port USB 3.0 Hub with 36 W power adapter — chosen
-  for its reliable power delivery; the dedicated 36 W adapter ensures the hub
-  can supply full USB 3.0 bus power to attached devices without back-powering
-  or brown-outs on the Pi. The extra ports also leave room for future
-  peripherals.
-- **SSD:** Crucial X9 1 TB Portable SSD (USB 3.2 Gen 2, USB-C) — rated up to
-  1050 MB/s sequential read. Connected through the Plugable hub, effective
-  throughput is capped at USB 3.0 speeds (~5 Gbps / ~500 MB/s), which is still
-  a significant improvement over the SD card.
-
-**Validating the connection:**
-
-After plugging the hub and SSD into one of the Pi 5's USB 3.0 ports (the blue
-ports), verify the SSD is negotiating at USB 3.0 (5000 Mbps) rather than
-falling back to USB 2.0 (480 Mbps):
-
-```bash
-lsusb -t
-```
-
-Look for the Crucial device in the tree and confirm the speed reads **5000M**.
-If it shows **480M** the device has fallen back to USB 2.0 — try a different
-cable, port, or check that the hub is connected to a blue USB 3.0 port on the
-Pi.
-
-**Planned approach:**
-- Attach SSD via the Plugable USB 3.0 hub to a Pi 5 USB 3.0 port
-- Create an Ansible role that formats and mounts the drive at a deterministic
-  path (e.g. `/mnt/ssd`)
-- Update Immich's `docker-compose.yml` volume mounts to point to the SSD
-- Update the OMV shared-folder configuration via the OMV API
-
----
 
 ### 2 — Boot from SSD
 
@@ -164,6 +127,82 @@ cluster across the Pi 5 and any additional nodes (other Pis, old laptops, etc.)
 - Migrate Docker Compose workloads (Immich, Nextcloud) to Kubernetes manifests
   / Helm charts
 - Add a shared storage layer (Longhorn or NFS) across nodes
+
+---
+
+### 9 — Clean up legacy SD card storage
+
+**Goal:** Reclaim SD card space after validating the SSD migration is working
+successfully.
+
+**Planned approach:**
+- Add a task to verify Immich is running successfully from SSD storage
+- After validation period (7-14 days), remove old `/opt/immich/library` and
+  `/opt/immich/postgres` directories from SD card
+- Option to create a one-time backup before deletion
+- Document the cleanup procedure in `docs/storage.md`
+
+---
+
+### 10 — Local SD card backups (3-2-1 strategy)
+
+**Goal:** Implement local backups to SD card to move closer to the 3-2-1 backup
+rule (3 copies, 2 different media types, 1 offsite).
+
+**Current state:** 1 copy on SSD only
+
+**Planned approach:**
+- Use `rsync` to periodically backup Immich data from SSD to SD card
+- Configure a `systemd` timer for nightly incremental backups
+- Store backups in `/opt/immich-backups/` on SD card
+- Implement retention policy (keep last 7 days, then weekly snapshots)
+- Monitor backup health and send alerts on failure
+- Combined with cloud backups (roadmap item #3), this achieves:
+  - **3 copies:** SSD (primary), SD card (local), cloud (offsite)
+  - **2 media:** SSD + SD card, cloud storage
+  - **1 offsite:** Encrypted cloud backup
+
+**Note:** This is complementary to cloud backups, not a replacement. SD card
+provides fast local recovery, cloud provides disaster recovery.
+
+---
+
+### 11 — LUKS encryption for external storage
+
+**Goal:** Add full-disk encryption to the external SSD for maximum data privacy
+and security.
+
+**Background:**
+- LUKS provides AES-256 encryption for the entire partition
+- Protects data if SSD is physically stolen or lost
+- Pi 5 has hardware AES acceleration, so performance impact is minimal (5-15%)
+- Requires passphrase/key to unlock the drive at mount time
+
+**Security benefits:**
+- Photos/videos are unreadable without the decryption key
+- Industry-standard encryption (used by governments and enterprises)
+- Open-source and audited implementation
+
+**Trade-offs:**
+- Adds complexity to setup and disaster recovery
+- Requires key management (passphrase or key file)
+- Cannot recover data if passphrase is lost
+- May require manual unlock after reboot (unless key file is used)
+
+**Planned approach:**
+- Add `omv_encrypt_external_storage` variable to OMV role
+- Store LUKS passphrase in Ansible Vault
+- Create key file on SD card for automatic unlocking at boot
+- Update storage setup tasks to:
+  1. Create LUKS container with `cryptsetup luksFormat`
+  2. Open container and format with ext4
+  3. Configure `/etc/crypttab` for persistent unlocking
+- Document encryption setup and key recovery procedures
+- Provide option to encrypt existing drives (requires data migration)
+
+**References:**
+- [LUKS documentation](https://gitlab.com/cryptsetup/cryptsetup)
+- [Raspberry Pi encryption guide](https://www.raspberrypi.com/documentation/computers/configuration.html#full-disk-encryption)
 
 ---
 

@@ -1,0 +1,209 @@
+---
+# roles/omv/tasks/setup_storage.yml — Prepare external SSD for Immich data
+#
+# Idempotency:
+#   - If the disk already has an ext4 partition labelled with
+#     omv_external_disk_label, it is reused without reformatting.
+#   - If the mount point is already in the OMV config database, registration
+#     is skipped.
+#   - On a fresh SSD (factory exFAT or blank), the disk is wiped, partitioned
+#     (GPT, single partition), and formatted ext4.
+
+- name: Install required filesystem tools
+  ansible.builtin.apt:
+    name:
+      - parted
+      - e2fsprogs
+    state: present
+    update_cache: false
+
+- name: Check if external drive exists
+  ansible.builtin.stat:
+    path: "{{ omv_external_disk_device }}"
+  register: omv_disk_stat
+
+- name: Fail if external disk not found
+  ansible.builtin.fail:
+    msg: >-
+      External disk {{ omv_external_disk_device }} not found.
+      Ensure the SSD is connected via USB.
+  when: not omv_disk_stat.stat.exists
+
+# ---- Detect existing filesystem ------------------------------------------------
+
+- name: Look for existing filesystem with expected label
+  ansible.builtin.command: blkid -L {{ omv_external_disk_label }}
+  register: omv_existing_device
+  changed_when: false
+  failed_when: false
+
+- name: Verify labelled partition is ext4
+  ansible.builtin.command: blkid -s TYPE -o value {{ omv_existing_device.stdout | trim }}
+  register: omv_existing_type
+  changed_when: false
+  failed_when: false
+  when: omv_existing_device.rc == 0
+
+- name: Set target partition (existing filesystem found)
+  ansible.builtin.set_fact:
+    omv_target_partition: "{{ omv_existing_device.stdout | trim }}"
+    omv_disk_needs_format: false
+  when:
+    - omv_existing_device.rc == 0
+    - (omv_existing_type.stdout | default('')) == 'ext4'
+
+- name: Set target partition (format needed)
+  ansible.builtin.set_fact:
+    omv_target_partition: "{{ omv_external_disk_device }}1"
+    omv_disk_needs_format: true
+  when: >-
+    omv_existing_device.rc != 0
+    or (omv_existing_type.stdout | default('')) != 'ext4'
+
+# ---- Wipe and format (only on a fresh / non-ext4 disk) -------------------------
+
+- name: Unmount any partitions on the disk before wiping
+  ansible.builtin.shell: |
+    set -eo pipefail
+    for part in $(lsblk -ln -o NAME {{ omv_external_disk_device }} | tail -n +2); do
+      umount "/dev/$part" 2>/dev/null || true
+    done
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when: omv_disk_needs_format | bool
+
+- name: Wipe all filesystem signatures from disk
+  ansible.builtin.command: wipefs -a {{ omv_external_disk_device }}
+  changed_when: true
+  when: omv_disk_needs_format | bool
+
+- name: Create GPT partition table with a single partition
+  community.general.parted:
+    device: "{{ omv_external_disk_device }}"
+    label: gpt
+    number: 1
+    part_start: "0%"
+    part_end: "100%"
+    state: present
+  when: omv_disk_needs_format | bool
+
+- name: Format partition as ext4
+  community.general.filesystem:
+    dev: "{{ omv_external_disk_device }}1"
+    fstype: ext4
+    opts: "-L {{ omv_external_disk_label }}"
+  when: omv_disk_needs_format | bool
+
+# ---- Get UUID and register with OMV --------------------------------------------
+
+- name: Get filesystem UUID
+  ansible.builtin.command: blkid -s UUID -o value {{ omv_target_partition }}
+  register: omv_disk_uuid
+  changed_when: false
+
+- name: Set mount point path (follows OMV naming convention)
+  ansible.builtin.set_fact:
+    omv_mount_point: "/srv/dev-disk-by-uuid-{{ omv_disk_uuid.stdout }}"
+
+# Register the mount point in OMV's configuration database so the web UI
+# can see and manage the filesystem.  Without this step the disk works at
+# the OS level but is invisible to the OMV interface.
+- name: Check if filesystem is already registered in OMV
+  ansible.builtin.shell: |
+    set -o pipefail
+    omv-confdbadm read conf.system.filesystem.mountpoint 2>/dev/null | \
+    python3 -c "
+    import sys, json
+    try:
+        data = json.load(sys.stdin)
+        entries = data if isinstance(data, list) else [data]
+        print('found' if any(
+            e.get('fsname') == '{{ omv_disk_uuid.stdout }}'
+            for e in entries
+        ) else 'missing')
+    except Exception:
+        print('missing')
+    "
+  args:
+    executable: /bin/bash
+  register: omv_fs_registered
+  changed_when: false
+
+- name: Register filesystem mount point in OMV via RPC
+  ansible.builtin.shell: >-
+    omv-rpc -u admin "FsTab" "set" '{{ omv_mountpoint_config | to_json }}'
+  args:
+    executable: /bin/bash
+  vars:
+    # OMV_CONFIGOBJECT_NEW_UUID tells OMV this is a new entry (not an update)
+    omv_mountpoint_config:
+      uuid: "fa4b1c66-ef79-11e5-87a0-0002b3a176b4"
+      fsname: "{{ omv_disk_uuid.stdout }}"
+      dir: "{{ omv_mount_point }}"
+      type: ext4
+      opts: "defaults,nofail"
+      freq: 0
+      passno: 2
+      hidden: false
+      usagewarnthreshold: 0
+      comment: ""
+  changed_when: true
+  when: omv_fs_registered.stdout == 'missing'
+
+# ---- Mount the filesystem -------------------------------------------------------
+
+- name: Apply OMV fstab configuration
+  ansible.builtin.command: omv-salt deploy run fstab
+  register: omv_fstab_result
+  changed_when: omv_fs_registered.stdout == 'missing'
+
+- name: Ensure mount point directory exists
+  ansible.builtin.file:
+    path: "{{ omv_mount_point }}"
+    state: directory
+    mode: "0755"
+
+- name: Check if filesystem is already mounted
+  ansible.builtin.command: findmnt -n {{ omv_mount_point }}
+  register: omv_mount_check
+  changed_when: false
+  failed_when: false
+
+- name: Mount the filesystem
+  ansible.posix.mount:
+    path: "{{ omv_mount_point }}"
+    src: "UUID={{ omv_disk_uuid.stdout }}"
+    fstype: ext4
+    opts: defaults,nofail
+    state: mounted
+  when: omv_mount_check.rc != 0
+
+# ---- Create Immich data directories --------------------------------------------
+
+- name: Create Immich shared folder directory on SSD
+  ansible.builtin.file:
+    path: "{{ omv_mount_point }}/{{ omv_immich_shared_folder_name }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create Immich subdirectories on SSD
+  ansible.builtin.file:
+    path: "{{ omv_mount_point }}/{{ omv_immich_shared_folder_name }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - library
+    - postgres
+
+# ---- Export facts for Immich role -----------------------------------------------
+
+- name: Register storage paths for Immich role
+  ansible.builtin.set_fact:
+    omv_immich_storage_path: "{{ omv_mount_point }}/{{ omv_immich_shared_folder_name }}"
+    omv_immich_library_path: "{{ omv_mount_point }}/{{ omv_immich_shared_folder_name }}/library"
+    omv_immich_db_path: "{{ omv_mount_point }}/{{ omv_immich_shared_folder_name }}/postgres"
